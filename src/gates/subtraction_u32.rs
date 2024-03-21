@@ -87,6 +87,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32Subtraction
         format!("{self:?}")
     }
 
+    fn export_circom_verification_code(&self) -> String {
+        todo!();
+    }
+    fn export_solidity_verification_code(&self) -> String {
+        todo!();
+    }
     fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
         dst.write_usize(self.num_ops)
     }

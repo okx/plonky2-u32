@@ -1,7 +1,7 @@
 [package]
 name = "plonky2_u32"
 description = "u32 gadget for Plonky2"
-version = "0.1.0"
+version = "0.2.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/mir-protocol/plonky2"
 edition = "2021"
@@ -10,8 +10,7 @@ edition = "2021"
 anyhow = { version = "1.0.40", default-features = false }
 itertools = { version = "0.10.0", default-features = false }
 num = { version = "0.4", default-features = false }
-plonky2 = "0.1.4"
+plonky2 = { git = "https://github.com/okx/plonky2", branch = "dev-cliff-upgrade-v0.2.0" }
 
 [dev-dependencies]
 rand = { version = "0.8.4", default-features = false, features = ["getrandom"] }
-plonky2 = "0.1.4"
