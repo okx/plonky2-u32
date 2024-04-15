@@ -1,0 +1,4 @@
+[submodule "depends/plonky2"]
+	path = depends/plonky2
+	url = git@github.com:okx/plonky2.git
+	branch = "0fc381fa8fe99294a7b310544f8d68d145b3a7ea"
