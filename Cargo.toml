@@ -10,7 +10,7 @@ edition = "2021"
 anyhow = { version = "1.0.40", default-features = false }
 itertools = { version = "0.10.0", default-features = false }
 num = { version = "0.4", default-features = false }
-plonky2 = { git = "ssh://git@github.com/okx/plonky2.git", rev= "7cf50f1f78d369c157f955505b1e8902926eefba"}
+plonky2 = { git = "ssh://git@github.com/okx/plonky2.git", rev= "26ec79e66349af5ab1234274f738c174048ddadd"}
 
 [dev-dependencies]
 rand = { version = "0.8.4", default-features = false, features = ["getrandom"] }
