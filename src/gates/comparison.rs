@@ -1,29 +1,40 @@
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
-use alloc::{format, vec};
-use core::marker::PhantomData;
-use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
-
-use plonky2::field::extension::Extendable;
-use plonky2::field::packed::PackedField;
-use plonky2::field::types::{Field, Field64};
-use plonky2::gates::gate::Gate;
-use plonky2::gates::packed_util::PackedEvaluableBase;
-use plonky2::gates::util::StridedConstraintConsumer;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator, WitnessGeneratorRef};
-use plonky2::iop::target::Target;
-use plonky2::iop::wire::Wire;
-use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::plonk_common::{reduce_with_powers, reduce_with_powers_ext_circuit};
-use plonky2::plonk::vars::{
-    EvaluationTargets, EvaluationVars, EvaluationVarsBase, EvaluationVarsBaseBatch,
-    EvaluationVarsBasePacked,
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
 };
-use plonky2::util::{bits_u64, ceil_div_usize};
+use core::marker::PhantomData;
+use plonky2::{
+    plonk::circuit_data::CommonCircuitData,
+    util::serialization::{Buffer, IoResult, Read, Write},
+};
+
+use plonky2::{
+    field::{
+        extension::Extendable,
+        packed::PackedField,
+        types::{Field, Field64},
+    },
+    gates::{gate::Gate, packed_util::PackedEvaluableBase, util::StridedConstraintConsumer},
+    hash::hash_types::RichField,
+    iop::{
+        ext_target::ExtensionTarget,
+        generator::{GeneratedValues, SimpleGenerator, WitnessGeneratorRef},
+        target::Target,
+        wire::Wire,
+        witness::{PartitionWitness, Witness, WitnessWrite},
+    },
+    plonk::{
+        circuit_builder::CircuitBuilder,
+        plonk_common::{reduce_with_powers, reduce_with_powers_ext_circuit},
+        vars::{
+            EvaluationTargets, EvaluationVars, EvaluationVarsBase, EvaluationVarsBaseBatch,
+            EvaluationVarsBasePacked,
+        },
+    },
+    util::{bits_u64, ceil_div_usize},
+};
 
 /// A gate for checking that one value is less than or equal to another.
 #[derive(Clone, Debug)]
@@ -36,11 +47,7 @@ pub struct ComparisonGate<F: Field64 + Extendable<D>, const D: usize> {
 impl<F: RichField + Extendable<D>, const D: usize> ComparisonGate<F, D> {
     pub fn new(num_bits: usize, num_chunks: usize) -> Self {
         debug_assert!(num_bits < bits_u64(F::ORDER));
-        Self {
-            num_bits,
-            num_chunks,
-            _phantom: PhantomData,
-        }
+        Self { num_bits, num_chunks, _phantom: PhantomData }
     }
 
     pub fn chunk_bits(&self) -> usize {
@@ -114,11 +121,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for ComparisonGate
     fn deserialize(src: &mut Buffer, _common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
         let num_bits = src.read_usize()?;
         let num_chunks = src.read_usize()?;
-        Ok(Self {
-            num_bits,
-            num_chunks,
-            _phantom: PhantomData,
-        })
+        Ok(Self { num_bits, num_chunks, _phantom: PhantomData })
     }
 
     fn eval_unfiltered(&self, vars: EvaluationVars<F, D>) -> Vec<F::Extension> {
@@ -128,12 +131,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for ComparisonGate
         let second_input = vars.local_wires[self.wire_second_input()];
 
         // Get chunks and assert that they match
-        let first_chunks: Vec<F::Extension> = (0..self.num_chunks)
-            .map(|i| vars.local_wires[self.wire_first_chunk_val(i)])
-            .collect();
-        let second_chunks: Vec<F::Extension> = (0..self.num_chunks)
-            .map(|i| vars.local_wires[self.wire_second_chunk_val(i)])
-            .collect();
+        let first_chunks: Vec<F::Extension> =
+            (0..self.num_chunks).map(|i| vars.local_wires[self.wire_first_chunk_val(i)]).collect();
+        let second_chunks: Vec<F::Extension> =
+            (0..self.num_chunks).map(|i| vars.local_wires[self.wire_second_chunk_val(i)]).collect();
 
         let first_chunks_combined = reduce_with_powers(
             &first_chunks,
@@ -223,12 +224,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for ComparisonGate
         let second_input = vars.local_wires[self.wire_second_input()];
 
         // Get chunks and assert that they match
-        let first_chunks: Vec<ExtensionTarget<D>> = (0..self.num_chunks)
-            .map(|i| vars.local_wires[self.wire_first_chunk_val(i)])
-            .collect();
-        let second_chunks: Vec<ExtensionTarget<D>> = (0..self.num_chunks)
-            .map(|i| vars.local_wires[self.wire_second_chunk_val(i)])
-            .collect();
+        let first_chunks: Vec<ExtensionTarget<D>> =
+            (0..self.num_chunks).map(|i| vars.local_wires[self.wire_first_chunk_val(i)]).collect();
+        let second_chunks: Vec<ExtensionTarget<D>> =
+            (0..self.num_chunks).map(|i| vars.local_wires[self.wire_second_chunk_val(i)]).collect();
 
         let chunk_base = builder.constant(F::from_canonical_usize(1 << self.chunk_bits()));
         let first_chunks_combined =
@@ -311,10 +310,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for ComparisonGate
     }
 
     fn generators(&self, row: usize, _local_constants: &[F]) -> Vec<WitnessGeneratorRef<F, D>> {
-        let gen = ComparisonGenerator::<F, D> {
-            row,
-            gate: self.clone(),
-        };
+        let gen = ComparisonGenerator::<F, D> { row, gate: self.clone() };
         vec![WitnessGeneratorRef::new(gen.adapter())]
     }
 
@@ -347,21 +343,15 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
         let second_input = vars.local_wires[self.wire_second_input()];
 
         // Get chunks and assert that they match
-        let first_chunks: Vec<_> = (0..self.num_chunks)
-            .map(|i| vars.local_wires[self.wire_first_chunk_val(i)])
-            .collect();
-        let second_chunks: Vec<_> = (0..self.num_chunks)
-            .map(|i| vars.local_wires[self.wire_second_chunk_val(i)])
-            .collect();
+        let first_chunks: Vec<_> =
+            (0..self.num_chunks).map(|i| vars.local_wires[self.wire_first_chunk_val(i)]).collect();
+        let second_chunks: Vec<_> =
+            (0..self.num_chunks).map(|i| vars.local_wires[self.wire_second_chunk_val(i)]).collect();
 
-        let first_chunks_combined = reduce_with_powers(
-            &first_chunks,
-            F::from_canonical_usize(1 << self.chunk_bits()),
-        );
-        let second_chunks_combined = reduce_with_powers(
-            &second_chunks,
-            F::from_canonical_usize(1 << self.chunk_bits()),
-        );
+        let first_chunks_combined =
+            reduce_with_powers(&first_chunks, F::from_canonical_usize(1 << self.chunk_bits()));
+        let second_chunks_combined =
+            reduce_with_powers(&second_chunks, F::from_canonical_usize(1 << self.chunk_bits()));
 
         yield_constr.one(first_chunks_combined - first_input);
         yield_constr.one(second_chunks_combined - second_input);
@@ -372,12 +362,10 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
 
         for i in 0..self.num_chunks {
             // Range-check the chunks to be less than `chunk_size`.
-            let first_product: P = (0..chunk_size)
-                .map(|x| first_chunks[i] - F::from_canonical_usize(x))
-                .product();
-            let second_product: P = (0..chunk_size)
-                .map(|x| second_chunks[i] - F::from_canonical_usize(x))
-                .product();
+            let first_product: P =
+                (0..chunk_size).map(|x| first_chunks[i] - F::from_canonical_usize(x)).product();
+            let second_product: P =
+                (0..chunk_size).map(|x| second_chunks[i] - F::from_canonical_usize(x)).product();
             yield_constr.one(first_product);
             yield_constr.one(second_product);
 
@@ -441,10 +429,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let local_wire = |column| Wire {
-            row: self.row,
-            column,
-        };
+        let local_wire = |column| Wire { row: self.row, column };
 
         let get_local_wire = |column| witness.get_wire(local_wire(column));
 
@@ -503,40 +488,24 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
                 Some(tmp)
             })
             .collect();
-        let msd_bits: Vec<F> = msd_bits_u64
-            .iter()
-            .map(|x| F::from_canonical_u64(*x))
-            .collect();
+        let msd_bits: Vec<F> = msd_bits_u64.iter().map(|x| F::from_canonical_u64(*x)).collect();
 
         out_buffer.set_wire(local_wire(self.gate.wire_result_bool()), result);
-        out_buffer.set_wire(
-            local_wire(self.gate.wire_most_significant_diff()),
-            most_significant_diff,
-        );
+        out_buffer
+            .set_wire(local_wire(self.gate.wire_most_significant_diff()), most_significant_diff);
         for i in 0..self.gate.num_chunks {
-            out_buffer.set_wire(
-                local_wire(self.gate.wire_first_chunk_val(i)),
-                first_input_chunks[i],
-            );
-            out_buffer.set_wire(
-                local_wire(self.gate.wire_second_chunk_val(i)),
-                second_input_chunks[i],
-            );
-            out_buffer.set_wire(
-                local_wire(self.gate.wire_equality_dummy(i)),
-                equality_dummies[i],
-            );
+            out_buffer
+                .set_wire(local_wire(self.gate.wire_first_chunk_val(i)), first_input_chunks[i]);
+            out_buffer
+                .set_wire(local_wire(self.gate.wire_second_chunk_val(i)), second_input_chunks[i]);
+            out_buffer.set_wire(local_wire(self.gate.wire_equality_dummy(i)), equality_dummies[i]);
             out_buffer.set_wire(local_wire(self.gate.wire_chunks_equal(i)), chunks_equal[i]);
-            out_buffer.set_wire(
-                local_wire(self.gate.wire_intermediate_value(i)),
-                intermediate_values[i],
-            );
+            out_buffer
+                .set_wire(local_wire(self.gate.wire_intermediate_value(i)), intermediate_values[i]);
         }
         for i in 0..self.gate.chunk_bits() + 1 {
-            out_buffer.set_wire(
-                local_wire(self.gate.wire_most_significant_diff_bit(i)),
-                msd_bits[i],
-            );
+            out_buffer
+                .set_wire(local_wire(self.gate.wire_most_significant_diff_bit(i)), msd_bits[i]);
         }
     }
 
@@ -555,13 +524,16 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::{PrimeField64, Sample};
-    use plonky2::gates::gate_testing::{test_eval_fns, test_low_degree};
-    use plonky2::hash::hash_types::HashOut;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use rand::rngs::OsRng;
-    use rand::Rng;
+    use plonky2::{
+        field::{
+            goldilocks_field::GoldilocksField,
+            types::{PrimeField64, Sample},
+        },
+        gates::gate_testing::{test_eval_fns, test_low_degree},
+        hash::hash_types::HashOut,
+        plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
+    };
+    use rand::{rngs::OsRng, Rng};
 
     use super::*;
 
@@ -571,11 +543,7 @@ mod tests {
         let num_bits = 40;
         let num_chunks = 5;
 
-        let gate = CG {
-            num_bits,
-            num_chunks,
-            _phantom: PhantomData,
-        };
+        let gate = CG { num_bits, num_chunks, _phantom: PhantomData };
 
         assert_eq!(gate.wire_first_input(), 0);
         assert_eq!(gate.wire_second_input(), 1);
@@ -709,39 +677,25 @@ mod tests {
         let first_input = F::from_canonical_u64(first_input_u64);
         let second_input = F::from_canonical_u64(second_input_u64);
 
-        let less_than_gate = ComparisonGate::<F, D> {
-            num_bits,
-            num_chunks,
-            _phantom: PhantomData,
-        };
+        let less_than_gate = ComparisonGate::<F, D> { num_bits, num_chunks, _phantom: PhantomData };
         let less_than_vars = EvaluationVars {
             local_constants: &[],
             local_wires: &get_wires(first_input, second_input),
             public_inputs_hash: &HashOut::rand(),
         };
         assert!(
-            less_than_gate
-                .eval_unfiltered(less_than_vars)
-                .iter()
-                .all(|x| x.is_zero()),
+            less_than_gate.eval_unfiltered(less_than_vars).iter().all(|x| x.is_zero()),
             "Gate constraints are not satisfied."
         );
 
-        let equal_gate = ComparisonGate::<F, D> {
-            num_bits,
-            num_chunks,
-            _phantom: PhantomData,
-        };
+        let equal_gate = ComparisonGate::<F, D> { num_bits, num_chunks, _phantom: PhantomData };
         let equal_vars = EvaluationVars {
             local_constants: &[],
             local_wires: &get_wires(first_input, first_input),
             public_inputs_hash: &HashOut::rand(),
         };
         assert!(
-            equal_gate
-                .eval_unfiltered(equal_vars)
-                .iter()
-                .all(|x| x.is_zero()),
+            equal_gate.eval_unfiltered(equal_vars).iter().all(|x| x.is_zero()),
             "Gate constraints are not satisfied."
         );
     }

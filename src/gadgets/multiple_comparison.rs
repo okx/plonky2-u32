@@ -1,14 +1,14 @@
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::util::ceil_div_usize;
+use plonky2::{
+    field::extension::Extendable,
+    hash::hash_types::RichField,
+    iop::target::{BoolTarget, Target},
+    plonk::circuit_builder::CircuitBuilder,
+    util::ceil_div_usize,
+};
 
-use crate::gadgets::arithmetic_u32::U32Target;
-use crate::gates::comparison::ComparisonGate;
+use crate::{gadgets::arithmetic_u32::U32Target, gates::comparison::ComparisonGate};
 
 /// Returns true if a is less than or equal to b, considered as base-`2^num_bits` limbs of a large value.
 /// This range-checks its inputs.
@@ -18,11 +18,7 @@ pub fn list_le_circuit<F: RichField + Extendable<D>, const D: usize>(
     b: Vec<Target>,
     num_bits: usize,
 ) -> BoolTarget {
-    assert_eq!(
-        a.len(),
-        b.len(),
-        "Comparison must be between same number of inputs and outputs"
-    );
+    assert_eq!(a.len(), b.len(), "Comparison must be between same number of inputs and outputs");
     let n = a.len();
 
     let chunk_bits = 2;
@@ -33,26 +29,14 @@ pub fn list_le_circuit<F: RichField + Extendable<D>, const D: usize>(
     for i in 0..n {
         let a_le_b_gate = ComparisonGate::new(num_bits, num_chunks);
         let a_le_b_row = builder.add_gate(a_le_b_gate.clone(), vec![]);
-        builder.connect(
-            Target::wire(a_le_b_row, a_le_b_gate.wire_first_input()),
-            a[i],
-        );
-        builder.connect(
-            Target::wire(a_le_b_row, a_le_b_gate.wire_second_input()),
-            b[i],
-        );
+        builder.connect(Target::wire(a_le_b_row, a_le_b_gate.wire_first_input()), a[i]);
+        builder.connect(Target::wire(a_le_b_row, a_le_b_gate.wire_second_input()), b[i]);
         let a_le_b_result = Target::wire(a_le_b_row, a_le_b_gate.wire_result_bool());
 
         let b_le_a_gate = ComparisonGate::new(num_bits, num_chunks);
         let b_le_a_row = builder.add_gate(b_le_a_gate.clone(), vec![]);
-        builder.connect(
-            Target::wire(b_le_a_row, b_le_a_gate.wire_first_input()),
-            b[i],
-        );
-        builder.connect(
-            Target::wire(b_le_a_row, b_le_a_gate.wire_second_input()),
-            a[i],
-        );
+        builder.connect(Target::wire(b_le_a_row, b_le_a_gate.wire_first_input()), b[i]);
+        builder.connect(Target::wire(b_le_a_row, b_le_a_gate.wire_second_input()), a[i]);
         let b_le_a_result = Target::wire(b_le_a_row, b_le_a_gate.wire_result_bool());
 
         let these_limbs_equal = builder.mul(a_le_b_result, b_le_a_result);
@@ -81,12 +65,15 @@ pub fn list_le_u32_circuit<F: RichField + Extendable<D>, const D: usize>(
 mod tests {
     use anyhow::Result;
     use num::BigUint;
-    use plonky2::field::types::Field;
-    use plonky2::iop::witness::PartialWitness;
-    use plonky2::plonk::circuit_data::CircuitConfig;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use rand::rngs::OsRng;
-    use rand::Rng;
+    use plonky2::{
+        field::types::Field,
+        iop::witness::PartialWitness,
+        plonk::{
+            circuit_data::CircuitConfig,
+            config::{GenericConfig, PoseidonGoldilocksConfig},
+        },
+    };
+    use rand::{rngs::OsRng, Rng};
 
     use super::*;
 
@@ -100,34 +87,18 @@ mod tests {
 
         let mut rng = OsRng;
 
-        let lst1: Vec<u64> = (0..size)
-            .map(|_| rng.gen_range(0..(1 << num_bits)))
-            .collect();
-        let lst2: Vec<u64> = (0..size)
-            .map(|_| rng.gen_range(0..(1 << num_bits)))
-            .collect();
+        let lst1: Vec<u64> = (0..size).map(|_| rng.gen_range(0..(1 << num_bits))).collect();
+        let lst2: Vec<u64> = (0..size).map(|_| rng.gen_range(0..(1 << num_bits))).collect();
 
         let a_biguint = BigUint::from_slice(
-            &lst1
-                .iter()
-                .flat_map(|&x| [x as u32, (x >> 32) as u32])
-                .collect::<Vec<_>>(),
+            &lst1.iter().flat_map(|&x| [x as u32, (x >> 32) as u32]).collect::<Vec<_>>(),
         );
         let b_biguint = BigUint::from_slice(
-            &lst2
-                .iter()
-                .flat_map(|&x| [x as u32, (x >> 32) as u32])
-                .collect::<Vec<_>>(),
+            &lst2.iter().flat_map(|&x| [x as u32, (x >> 32) as u32]).collect::<Vec<_>>(),
         );
 
-        let a = lst1
-            .iter()
-            .map(|&x| builder.constant(F::from_canonical_u64(x)))
-            .collect();
-        let b = lst2
-            .iter()
-            .map(|&x| builder.constant(F::from_canonical_u64(x)))
-            .collect();
+        let a = lst1.iter().map(|&x| builder.constant(F::from_canonical_u64(x))).collect();
+        let b = lst2.iter().map(|&x| builder.constant(F::from_canonical_u64(x))).collect();
 
         let result = list_le_circuit(&mut builder, a, b, num_bits);
 

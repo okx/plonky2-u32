@@ -1,23 +1,32 @@
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
-use alloc::{format, vec};
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use core::marker::PhantomData;
-use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
+use plonky2::{
+    plonk::circuit_data::CommonCircuitData,
+    util::serialization::{Buffer, IoResult, Read, Write},
+};
 
-use plonky2::field::extension::Extendable;
-use plonky2::field::types::Field;
-use plonky2::gates::gate::Gate;
-use plonky2::gates::util::StridedConstraintConsumer;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator, WitnessGeneratorRef};
-use plonky2::iop::target::Target;
-use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::plonk_common::{reduce_with_powers, reduce_with_powers_ext_circuit};
-use plonky2::plonk::vars::{EvaluationTargets, EvaluationVars, EvaluationVarsBase};
-use plonky2::util::ceil_div_usize;
+use plonky2::{
+    field::{extension::Extendable, types::Field},
+    gates::{gate::Gate, util::StridedConstraintConsumer},
+    hash::hash_types::RichField,
+    iop::{
+        ext_target::ExtensionTarget,
+        generator::{GeneratedValues, SimpleGenerator, WitnessGeneratorRef},
+        target::Target,
+        witness::{PartitionWitness, Witness, WitnessWrite},
+    },
+    plonk::{
+        circuit_builder::CircuitBuilder,
+        plonk_common::{reduce_with_powers, reduce_with_powers_ext_circuit},
+        vars::{EvaluationTargets, EvaluationVars, EvaluationVarsBase},
+    },
+    util::ceil_div_usize,
+};
 
 /// A gate which can decompose a number into base B little-endian limbs.
 #[derive(Copy, Clone, Debug)]
@@ -28,10 +37,7 @@ pub struct U32RangeCheckGate<F: RichField + Extendable<D>, const D: usize> {
 
 impl<F: RichField + Extendable<D>, const D: usize> U32RangeCheckGate<F, D> {
     pub fn new(num_input_limbs: usize) -> Self {
-        Self {
-            num_input_limbs,
-            _phantom: PhantomData,
-        }
+        Self { num_input_limbs, _phantom: PhantomData }
     }
 
     pub const AUX_LIMB_BITS: usize = 2;
@@ -68,10 +74,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32RangeCheckG
 
     fn deserialize(src: &mut Buffer, _common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
         let num_input_limbs = src.read_usize()?;
-        Ok(Self {
-            num_input_limbs,
-            _phantom: PhantomData,
-        })
+        Ok(Self { num_input_limbs, _phantom: PhantomData })
     }
 
     fn eval_unfiltered(&self, vars: EvaluationVars<F, D>) -> Vec<F::Extension> {
@@ -113,11 +116,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32RangeCheckG
 
             yield_constr.one(computed_sum - input_limb);
             for aux_limb in aux_limbs {
-                yield_constr.one(
-                    (0..Self::BASE)
-                        .map(|i| aux_limb - F::from_canonical_usize(i))
-                        .product(),
-                );
+                yield_constr
+                    .one((0..Self::BASE).map(|i| aux_limb - F::from_canonical_usize(i)).product());
             }
         }
     }
@@ -241,14 +241,17 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 mod tests {
     use anyhow::Result;
     use itertools::unfold;
-    use plonky2::field::extension::quartic::QuarticExtension;
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::{Field, Sample};
-    use plonky2::gates::gate_testing::{test_eval_fns, test_low_degree};
-    use plonky2::hash::hash_types::HashOut;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use rand::rngs::OsRng;
-    use rand::Rng;
+    use plonky2::{
+        field::{
+            extension::quartic::QuarticExtension,
+            goldilocks_field::GoldilocksField,
+            types::{Field, Sample},
+        },
+        gates::gate_testing::{test_eval_fns, test_low_degree},
+        hash::hash_types::HashOut,
+        plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
+    };
+    use rand::{rngs::OsRng, Rng};
 
     use super::*;
 
@@ -305,10 +308,7 @@ mod tests {
                 .collect()
         }
 
-        let gate = U32RangeCheckGate::<F, D> {
-            num_input_limbs: 8,
-            _phantom: PhantomData,
-        };
+        let gate = U32RangeCheckGate::<F, D> { num_input_limbs: 8, _phantom: PhantomData };
 
         let vars = EvaluationVars {
             local_constants: &[],

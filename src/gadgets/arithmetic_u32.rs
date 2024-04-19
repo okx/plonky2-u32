@@ -1,22 +1,33 @@
-use alloc::string::{String, ToString};
-use alloc::vec;
-use alloc::vec::Vec;
+use alloc::{
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use core::marker::PhantomData;
-use plonky2::plonk::circuit_data::CommonCircuitData;
-use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
+use plonky2::{
+    plonk::circuit_data::CommonCircuitData,
+    util::serialization::{Buffer, IoResult, Read, Write},
+};
 
-use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
-use plonky2::iop::target::Target;
-use plonky2::iop::witness::{PartitionWitness, Witness};
-use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::{
+    field::extension::Extendable,
+    hash::hash_types::RichField,
+    iop::{
+        generator::{GeneratedValues, SimpleGenerator},
+        target::Target,
+        witness::{PartitionWitness, Witness},
+    },
+    plonk::circuit_builder::CircuitBuilder,
+};
 
-use crate::gates::add_many_u32::U32AddManyGate;
-use crate::gates::arithmetic_u32::U32ArithmeticGate;
-use crate::gates::subtraction_u32::U32SubtractionGate;
-use crate::serialization::{ReadU32, WriteU32};
-use crate::witness::GeneratedValuesU32;
+use crate::{
+    gates::{
+        add_many_u32::U32AddManyGate, arithmetic_u32::U32ArithmeticGate,
+        subtraction_u32::U32SubtractionGate,
+    },
+    serialization::{ReadU32, WriteU32},
+    witness::GeneratedValuesU32,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct U32Target(pub Target);
@@ -74,10 +85,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
     }
 
     fn add_virtual_u32_targets(&mut self, n: usize) -> Vec<U32Target> {
-        self.add_virtual_targets(n)
-            .into_iter()
-            .map(U32Target)
-            .collect()
+        self.add_virtual_targets(n).into_iter().map(U32Target).collect()
     }
 
     /// Returns a U32Target for the value `c`, which is assumed to be at most 32 bits.
@@ -115,11 +123,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
         let z_const = self.target_as_constant(z.0);
 
         // If both terms are constant, return their (constant) sum.
-        let first_term_const = if let (Some(xx), Some(yy)) = (x_const, y_const) {
-            Some(xx * yy)
-        } else {
-            None
-        };
+        let first_term_const =
+            if let (Some(xx), Some(yy)) = (x_const, y_const) { Some(xx * yy) } else { None };
 
         if let (Some(a), Some(b)) = (first_term_const, z_const) {
             let sum = (a + b).to_canonical_u64();
@@ -197,10 +202,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
         let (row, copy) = self.find_slot(gate, &[F::from_canonical_usize(num_addends)], &[]);
 
         for j in 0..num_addends {
-            self.connect(
-                Target::wire(row, gate.wire_ith_op_jth_addend(copy, j)),
-                to_add[j].0,
-            );
+            self.connect(Target::wire(row, gate.wire_ith_op_jth_addend(copy, j)), to_add[j].0);
         }
         self.connect(Target::wire(row, gate.wire_ith_carry(copy)), carry.0);
 
@@ -222,10 +224,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderU32<F, D>
 
         self.connect(Target::wire(row, gate.wire_ith_input_x(copy)), x.0);
         self.connect(Target::wire(row, gate.wire_ith_input_y(copy)), y.0);
-        self.connect(
-            Target::wire(row, gate.wire_ith_input_borrow(copy)),
-            borrow.0,
-        );
+        self.connect(Target::wire(row, gate.wire_ith_input_borrow(copy)), borrow.0);
 
         let output_result = U32Target(Target::wire(row, gate.wire_ith_output_result(copy)));
         let output_borrow = U32Target(Target::wire(row, gate.wire_ith_output_borrow(copy)));
@@ -259,12 +258,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         let x = src.read_target()?;
         let low = src.read_target_u32()?;
         let high = src.read_target_u32()?;
-        Ok(Self {
-            x,
-            low,
-            high,
-            _phantom: PhantomData,
-        })
+        Ok(Self { x, low, high, _phantom: PhantomData })
     }
 
     fn dependencies(&self) -> Vec<Target> {
@@ -285,11 +279,14 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use plonky2::iop::witness::PartialWitness;
-    use plonky2::plonk::circuit_data::CircuitConfig;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use rand::rngs::OsRng;
-    use rand::Rng;
+    use plonky2::{
+        iop::witness::PartialWitness,
+        plonk::{
+            circuit_data::CircuitConfig,
+            config::{GenericConfig, PoseidonGoldilocksConfig},
+        },
+    };
+    use rand::{rngs::OsRng, Rng};
 
     use super::*;
 

@@ -1,24 +1,30 @@
-use alloc::format;
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
 use core::marker::PhantomData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 use itertools::unfold;
-use plonky2::field::extension::Extendable;
-use plonky2::field::types::Field;
-use plonky2::gates::gate::Gate;
-use plonky2::gates::util::StridedConstraintConsumer;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator, WitnessGeneratorRef};
-use plonky2::iop::target::Target;
-use plonky2::iop::wire::Wire;
-use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CommonCircuitData};
-use plonky2::plonk::vars::{EvaluationTargets, EvaluationVars, EvaluationVarsBase};
-use plonky2::util::ceil_div_usize;
+use plonky2::{
+    field::{extension::Extendable, types::Field},
+    gates::{gate::Gate, util::StridedConstraintConsumer},
+    hash::hash_types::RichField,
+    iop::{
+        ext_target::ExtensionTarget,
+        generator::{GeneratedValues, SimpleGenerator, WitnessGeneratorRef},
+        target::Target,
+        wire::Wire,
+        witness::{PartitionWitness, Witness, WitnessWrite},
+    },
+    plonk::{
+        circuit_builder::CircuitBuilder,
+        circuit_data::{CircuitConfig, CommonCircuitData},
+        vars::{EvaluationTargets, EvaluationVars, EvaluationVarsBase},
+    },
+    util::ceil_div_usize,
+};
 
 const LOG2_MAX_NUM_ADDENDS: usize = 4;
 const MAX_NUM_ADDENDS: usize = 16;
@@ -33,11 +39,7 @@ pub struct U32AddManyGate<F: RichField + Extendable<D>, const D: usize> {
 
 impl<F: RichField + Extendable<D>, const D: usize> U32AddManyGate<F, D> {
     pub fn new_from_config(config: &CircuitConfig, num_addends: usize) -> Self {
-        Self {
-            num_addends,
-            num_ops: Self::num_ops(num_addends, config),
-            _phantom: PhantomData,
-        }
+        Self { num_addends, num_ops: Self::num_ops(num_addends, config), _phantom: PhantomData }
     }
 
     pub(crate) fn num_ops(num_addends: usize, config: &CircuitConfig) -> usize {
@@ -105,11 +107,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32AddManyGate
     fn deserialize(src: &mut Buffer, _common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
         let num_addends = src.read_usize()?;
         let num_ops = src.read_usize()?;
-        Ok(Self {
-            num_addends,
-            num_ops,
-            _phantom: PhantomData,
-        })
+        Ok(Self { num_addends, num_ops, _phantom: PhantomData })
     }
 
     fn eval_unfiltered(&self, vars: EvaluationVars<F, D>) -> Vec<F::Extension> {
@@ -181,9 +179,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32AddManyGate
             for j in (0..Self::num_limbs()).rev() {
                 let this_limb = vars.local_wires[self.wire_ith_output_jth_limb(i, j)];
                 let max_limb = 1 << Self::limb_bits();
-                let product = (0..max_limb)
-                    .map(|x| this_limb - F::from_canonical_usize(x))
-                    .product();
+                let product =
+                    (0..max_limb).map(|x| this_limb - F::from_canonical_usize(x)).product();
                 yield_constr.one(product);
 
                 if j < Self::num_result_limbs() {
@@ -261,13 +258,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32AddManyGate
         (0..self.num_ops)
             .map(|i| {
                 WitnessGeneratorRef::new(
-                    U32AddManyGenerator {
-                        gate: *self,
-                        row,
-                        i,
-                        _phantom: PhantomData,
-                    }
-                    .adapter(),
+                    U32AddManyGenerator { gate: *self, row, i, _phantom: PhantomData }.adapter(),
                 )
             })
             .collect()
@@ -315,12 +306,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         let gate = U32AddManyGate::deserialize(src, common_data)?;
         let row = src.read_usize()?;
         let i = src.read_usize()?;
-        Ok(Self {
-            gate,
-            row,
-            i,
-            _phantom: PhantomData,
-        })
+        Ok(Self { gate, row, i, _phantom: PhantomData })
     }
 
     fn dependencies(&self) -> Vec<Target> {
@@ -333,10 +319,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let local_wire = |column| Wire {
-            row: self.row,
-            column,
-        };
+        let local_wire = |column| Wire { row: self.row, column };
 
         let get_local_wire = |column| witness.get_wire(local_wire(column));
 
@@ -387,14 +370,15 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use plonky2::field::extension::quartic::QuarticExtension;
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::Sample;
-    use plonky2::gates::gate_testing::{test_eval_fns, test_low_degree};
-    use plonky2::hash::hash_types::HashOut;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use rand::rngs::OsRng;
-    use rand::Rng;
+    use plonky2::{
+        field::{
+            extension::quartic::QuarticExtension, goldilocks_field::GoldilocksField, types::Sample,
+        },
+        gates::gate_testing::{test_eval_fns, test_low_degree},
+        hash::hash_types::HashOut,
+        plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
+    };
+    use rand::{rngs::OsRng, Rng};
 
     use super::*;
 
@@ -474,9 +458,7 @@ mod tests {
         let addends: Vec<Vec<_>> = (0..NUM_U32_ADD_MANY_OPS)
             .map(|_| (0..NUM_ADDENDS).map(|_| rng.gen::<u32>() as u64).collect())
             .collect();
-        let carries: Vec<_> = (0..NUM_U32_ADD_MANY_OPS)
-            .map(|_| rng.gen::<u32>() as u64)
-            .collect();
+        let carries: Vec<_> = (0..NUM_U32_ADD_MANY_OPS).map(|_| rng.gen::<u32>() as u64).collect();
 
         let gate = U32AddManyGate::<F, D> {
             num_addends: NUM_ADDENDS,

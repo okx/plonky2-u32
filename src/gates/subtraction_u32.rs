@@ -1,26 +1,31 @@
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
-use alloc::{format, vec};
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use core::marker::PhantomData;
 use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
-use plonky2::field::extension::Extendable;
-use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
-use plonky2::gates::gate::Gate;
-use plonky2::gates::packed_util::PackedEvaluableBase;
-use plonky2::gates::util::StridedConstraintConsumer;
-use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator, WitnessGeneratorRef};
-use plonky2::iop::target::Target;
-use plonky2::iop::wire::Wire;
-use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CommonCircuitData};
-use plonky2::plonk::vars::{
-    EvaluationTargets, EvaluationVars, EvaluationVarsBase, EvaluationVarsBaseBatch,
-    EvaluationVarsBasePacked,
+use plonky2::{
+    field::{extension::Extendable, packed::PackedField, types::Field},
+    gates::{gate::Gate, packed_util::PackedEvaluableBase, util::StridedConstraintConsumer},
+    hash::hash_types::RichField,
+    iop::{
+        ext_target::ExtensionTarget,
+        generator::{GeneratedValues, SimpleGenerator, WitnessGeneratorRef},
+        target::Target,
+        wire::Wire,
+        witness::{PartitionWitness, Witness, WitnessWrite},
+    },
+    plonk::{
+        circuit_builder::CircuitBuilder,
+        circuit_data::{CircuitConfig, CommonCircuitData},
+        vars::{
+            EvaluationTargets, EvaluationVars, EvaluationVarsBase, EvaluationVarsBaseBatch,
+            EvaluationVarsBasePacked,
+        },
+    },
 };
 
 /// A gate to perform a subtraction on 32-bit limbs: given `x`, `y`, and `borrow`, it returns
@@ -33,10 +38,7 @@ pub struct U32SubtractionGate<F: RichField + Extendable<D>, const D: usize> {
 
 impl<F: RichField + Extendable<D>, const D: usize> U32SubtractionGate<F, D> {
     pub fn new_from_config(config: &CircuitConfig) -> Self {
-        Self {
-            num_ops: Self::num_ops(config),
-            _phantom: PhantomData,
-        }
+        Self { num_ops: Self::num_ops(config), _phantom: PhantomData }
     }
 
     pub(crate) fn num_ops(config: &CircuitConfig) -> usize {
@@ -99,10 +101,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32Subtraction
 
     fn deserialize(src: &mut Buffer, _common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
         let num_ops = src.read_usize()?;
-        Ok(Self {
-            num_ops,
-            _phantom: PhantomData,
-        })
+        Ok(Self { num_ops, _phantom: PhantomData })
     }
 
     fn eval_unfiltered(&self, vars: EvaluationVars<F, D>) -> Vec<F::Extension> {
@@ -208,13 +207,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32Subtraction
         (0..self.num_ops)
             .map(|i| {
                 WitnessGeneratorRef::new(
-                    U32SubtractionGenerator {
-                        gate: *self,
-                        row,
-                        i,
-                        _phantom: PhantomData,
-                    }
-                    .adapter(),
+                    U32SubtractionGenerator { gate: *self, row, i, _phantom: PhantomData }
+                        .adapter(),
                 )
             })
             .collect()
@@ -264,9 +258,8 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
             for j in (0..Self::num_limbs()).rev() {
                 let this_limb = vars.local_wires[self.wire_ith_output_jth_limb(i, j)];
                 let max_limb = 1 << Self::limb_bits();
-                let product = (0..max_limb)
-                    .map(|x| this_limb - F::from_canonical_usize(x))
-                    .product();
+                let product =
+                    (0..max_limb).map(|x| this_limb - F::from_canonical_usize(x)).product();
                 yield_constr.one(product);
 
                 combined_limbs = combined_limbs * limb_base + this_limb;
@@ -305,10 +298,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     }
 
     fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let local_wire = |column| Wire {
-            row: self.row,
-            column,
-        };
+        let local_wire = |column| Wire { row: self.row, column };
 
         let get_local_wire = |column| witness.get_wire(local_wire(column));
 
@@ -318,11 +308,7 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
 
         let result_initial = input_x - input_y - input_borrow;
         let result_initial_u64 = result_initial.to_canonical_u64();
-        let output_borrow = if result_initial_u64 > 1 << 32u64 {
-            F::ONE
-        } else {
-            F::ZERO
-        };
+        let output_borrow = if result_initial_u64 > 1 << 32u64 { F::ONE } else { F::ZERO };
 
         let base = F::from_canonical_u64(1 << 32u64);
         let output_result = result_initial + base * output_borrow;
@@ -361,26 +347,24 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         let gate = U32SubtractionGate::deserialize(src, common_data)?;
         let row = src.read_usize()?;
         let i = src.read_usize()?;
-        Ok(Self {
-            gate,
-            row,
-            i,
-            _phantom: PhantomData,
-        })
+        Ok(Self { gate, row, i, _phantom: PhantomData })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use plonky2::field::extension::quartic::QuarticExtension;
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::{PrimeField64, Sample};
-    use plonky2::gates::gate_testing::{test_eval_fns, test_low_degree};
-    use plonky2::hash::hash_types::HashOut;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use rand::rngs::OsRng;
-    use rand::Rng;
+    use plonky2::{
+        field::{
+            extension::quartic::QuarticExtension,
+            goldilocks_field::GoldilocksField,
+            types::{PrimeField64, Sample},
+        },
+        gates::gate_testing::{test_eval_fns, test_low_degree},
+        hash::hash_types::HashOut,
+        plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
+    };
+    use rand::{rngs::OsRng, Rng};
 
     use super::*;
 
@@ -424,11 +408,7 @@ mod tests {
 
                 let result_initial = input_x - input_y - input_borrow;
                 let result_initial_u64 = result_initial.to_canonical_u64();
-                let output_borrow = if result_initial_u64 > 1 << 32u64 {
-                    F::ONE
-                } else {
-                    F::ZERO
-                };
+                let output_borrow = if result_initial_u64 > 1 << 32u64 { F::ONE } else { F::ZERO };
 
                 let base = F::from_canonical_u64(1 << 32u64);
                 let output_result = result_initial + base * output_borrow;
@@ -455,20 +435,12 @@ mod tests {
         }
 
         let mut rng = OsRng;
-        let inputs_x = (0..NUM_U32_SUBTRACTION_OPS)
-            .map(|_| rng.gen::<u32>() as u64)
-            .collect();
-        let inputs_y = (0..NUM_U32_SUBTRACTION_OPS)
-            .map(|_| rng.gen::<u32>() as u64)
-            .collect();
-        let borrows = (0..NUM_U32_SUBTRACTION_OPS)
-            .map(|_| (rng.gen::<u32>() % 2) as u64)
-            .collect();
+        let inputs_x = (0..NUM_U32_SUBTRACTION_OPS).map(|_| rng.gen::<u32>() as u64).collect();
+        let inputs_y = (0..NUM_U32_SUBTRACTION_OPS).map(|_| rng.gen::<u32>() as u64).collect();
+        let borrows = (0..NUM_U32_SUBTRACTION_OPS).map(|_| (rng.gen::<u32>() % 2) as u64).collect();
 
-        let gate = U32SubtractionGate::<F, D> {
-            num_ops: NUM_U32_SUBTRACTION_OPS,
-            _phantom: PhantomData,
-        };
+        let gate =
+            U32SubtractionGate::<F, D> { num_ops: NUM_U32_SUBTRACTION_OPS, _phantom: PhantomData };
 
         let vars = EvaluationVars {
             local_constants: &[],
